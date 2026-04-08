@@ -1,4 +1,16 @@
+# sys
+.DS_Store
+
+# sen
+financecore_db.env
+
+# dt file
+data/*
+# Python
 venv/
-.env
-finance_clean.csv
-data/fianancecore_clean.csv
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
