@@ -1,9 +1,12 @@
 # sys
 .DS_Store
+.vscode
 
 # sen
 financecore_db.env
 .env
+test.env
+test_db.env
 
 # dt file
 data/*
