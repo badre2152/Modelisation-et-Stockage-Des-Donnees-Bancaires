@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
@@ -8,31 +9,54 @@ from create_tables import Client, Produit, Agence, Temps, Transaction, PRODUIT_C
 logger = logging.getLogger(__name__)
  
  
+# ─────────────────────────────────────────────
+# HELPERS
+# ─────────────────────────────────────────────
+ 
+def _parse_client_id(raw: str) -> int:
+    """
+    Extract the integer PK from a CSV client code.
+    e.g. 'CLI0023' → 23,  'CLI0100' → 100
+    Raises ValueError if no digits are found.
+    """
+    m = re.search(r'\d+', str(raw))
+    if not m:
+        raise ValueError(f"Cannot parse integer from client_id value: '{raw}'")
+    return int(m.group())
+ 
+ 
+# ─────────────────────────────────────────────
+# CSV COLUMN MAPPING REFERENCE
+# ─────────────────────────────────────────────
+#
+#  CSV column              → DB destination
+#  ─────────────────────────────────────────────────────────
+#  client_id  (CLI0023)   → clients.client_id  (parsed int)
+#  segment_client         → clients.segment_client
+#  score_credit_client    → clients.score_credit_client
+#  produit                → produits.produit  (natural PK)
+#  categorie              → produits.categorie  (fallback: PRODUIT_CATEGORIE_MAP)
+#  categorie_risque       → produits.categorie_risque
+#  agence                 → agences.agence  (natural PK)
+#  date_transaction       → temps.date_transaction  (natural PK)
+#  montant                → transactions.montant
+#  devise                 → transactions.devise
+#  taux_change_eur        → transactions.taux_change_eur
+#  montant_eur            → transactions.montant_eur
+#  categorie              → transactions.type_operation
+#  statut                 → transactions.statut
+#  is.anomaly             → transactions.is_anomaly  (dot in CSV name)
+#  montant_eur_verifie    → transactions.montant_eur_verifie
+ 
+ 
 def load_csv_to_db(file_path: str):
     """
-    Reads financecore_clean.csv and loads its data into the database.
- 
-    CSV COLUMN MAPPING REFERENCE:
-    ┌──────────────────────────┬────────────────────────────────────────────────┐
-    │ CSV Column               │ DB Destination                                 │
-    ├──────────────────────────┼────────────────────────────────────────────────┤
-    │ client_id  (CLI0023)     │ clients.client_code                            │
-    │ segment_client           │ clients.segment          FIX #4                │
-    │ score_credit_client      │ clients.score_credit     FIX #10               │
-    │ produit                  │ produits.nom_produit     FIX #2                │
-    │ (derived from produit)   │ produits.categorie       FIX #2                │
-    │ agence                   │ agences.nom_agence       FIX #3                │
-    │ categorie                │ transactions.type_operation (Paiement CB…)     │
-    │ type_operation           │ transactions.direction   (Debit/Credit)        │
-    │ is.anomaly               │ transactions.est_anomalie FIX #5               │
-    │ montant_eur              │ transactions.montant_eur  FIX #10              │
-    │ devise                   │ transactions.devise       FIX #10              │
-    │ solde_avant              │ transactions.solde_avant  FIX #10              │
-    │ canal                    │ transactions.canal → 'Inconnu' (absent) FIX #6 │
-    └──────────────────────────┴────────────────────────────────────────────────┘
+    Reads the CSV and loads all dimension + fact data into the database.
+    Idempotent: skips rows that already exist (checked by PK).
+    Rolls back the entire session on any error.
     """
     if not os.path.exists(file_path):
-        logger.error(f"CSV file not found at path: '{file_path}'. Please verify the file location.")
+        logger.error(f"CSV file not found: '{file_path}'")
         raise FileNotFoundError(f"CSV file not found: '{file_path}'")
  
     engine = get_engine()
@@ -41,145 +65,129 @@ def load_csv_to_db(file_path: str):
  
     try:
         # ── 1. READ CSV ───────────────────────────────────────────────
-        logger.info(f"Reading data from '{file_path}'...")
+        logger.info(f"Reading '{file_path}'...")
         df = pd.read_csv(file_path)
         df['date_transaction'] = pd.to_datetime(df['date_transaction'])
         logger.info(f"Loaded {len(df):,} rows from CSV.")
  
         # ── 2. CLIENTS ────────────────────────────────────────────────
-        # FIX #1 #4 #10: CSV has client_id (CLI0023), segment_client, score_credit_client.
-        # No nom/prenom/email/telephone/ville in this dataset.
-        # Deduplicate by client_id; take the MEAN score_credit per client
-        # (score may vary across rows for the same client).
+        # client_id PK is parsed from 'CLI0023' → 23 (autoincrement=False).
+        # One row per unique client_id; take first segment, mean credit score.
         logger.info("Loading Clients...")
-        client_map = {}  # client_code → client_id (PK)
- 
         client_stats = (
             df.groupby('client_id')
-              .agg(segment=('segment_client', 'first'),
-                   score_credit=('score_credit_client', 'mean'))
+              .agg(
+                  segment_client      = ('segment_client',      'first'),
+                  score_credit_client = ('score_credit_client', 'mean'),
+              )
               .reset_index()
         )
  
+        new_clients = 0
         for _, row in client_stats.iterrows():
-            existing = session.query(Client).filter_by(client_code=row['client_id']).first()
-            if not existing:
-                client = Client(
-                    client_code  = row['client_id'],
-                    segment      = row['segment'],
-                    score_credit = row['score_credit'],
-                )
-                session.add(client)
-                session.flush()
-                client_map[row['client_id']] = client.client_id
-            else:
-                client_map[row['client_id']] = existing.client_id
+            pk = _parse_client_id(row['client_id'])
+            if session.get(Client, pk) is None:
+                session.add(Client(
+                    client_id           = pk,
+                    segment_client      = row['segment_client'],
+                    score_credit_client = round(row['score_credit_client']),
+                ))
+                new_clients += 1
  
-        logger.info(f"✅ {len(client_map)} clients processed.")
+        session.flush()
+        logger.info(f"✅ Clients — {new_clients} inserted, "
+                    f"{len(client_stats) - new_clients} already existed.")
  
         # ── 3. PRODUITS ───────────────────────────────────────────────
-        # FIX #2: CSV column is 'produit' (not 'nom_produit').
-        # categorie is derived from PRODUIT_CATEGORIE_MAP (not in CSV).
-        # sous_categorie and taux_interet are absent — left as defaults.
+        # Natural PK: produit varchar.
+        # categorie: prefer CSV column 'categorie' per-product; fallback to map.
+        # categorie_risque: taken directly from CSV if the column exists.
         logger.info("Loading Produits...")
-        produit_map = {}  # nom_produit → produit_id
+        has_cat_risque = 'categorie_risque' in df.columns
+        has_categorie  = 'categorie' in df.columns
  
-        for nom in df['produit'].unique():
-            existing = session.query(Produit).filter_by(nom_produit=nom).first()
-            if not existing:
-                produit = Produit(
-                    nom_produit    = nom,
-                    categorie      = PRODUIT_CATEGORIE_MAP.get(nom, 'Autre'),
-                    sous_categorie = None,   # not in CSV
-                    taux_interet   = 0.0,    # not in CSV
+        produit_meta = (
+            df.groupby('produit')
+              .first()
+              .reset_index()
+        )
+ 
+        new_produits = 0
+        for _, row in produit_meta.iterrows():
+            nom = row['produit']
+            if session.get(Produit, nom) is None:
+                categorie = (
+                    row['categorie'] if has_categorie and pd.notna(row.get('categorie'))
+                    else PRODUIT_CATEGORIE_MAP.get(nom, 'Autre')
                 )
-                session.add(produit)
-                session.flush()
-                produit_map[nom] = produit.produit_id
-            else:
-                produit_map[nom] = existing.produit_id
+                session.add(Produit(
+                    produit          = nom,
+                    categorie        = categorie,
+                    categorie_risque = row.get('categorie_risque') if has_cat_risque else None,
+                ))
+                new_produits += 1
  
-        logger.info(f"✅ {len(produit_map)} produits processed.")
+        session.flush()
+        logger.info(f"✅ Produits — {new_produits} inserted, "
+                    f"{len(produit_meta) - new_produits} already existed.")
  
         # ── 4. AGENCES ────────────────────────────────────────────────
-        # FIX #3: CSV column is 'agence' (not 'nom_agence').
-        # agence_ville and agence_region are absent in CSV — left as None.
+        # Natural PK: agence varchar.
         logger.info("Loading Agences...")
-        agence_map = {}  # nom_agence → agence_id
+        agence_names = df['agence'].unique()
+        new_agences = 0
+        for nom in agence_names:
+            if session.get(Agence, nom) is None:
+                session.add(Agence(agence=nom))
+                new_agences += 1
  
-        for nom in df['agence'].unique():
-            existing = session.query(Agence).filter_by(nom_agence=nom).first()
-            if not existing:
-                agence = Agence(
-                    nom_agence = nom,
-                    ville      = None,   # not in CSV
-                    region     = None,   # not in CSV
-                )
-                session.add(agence)
-                session.flush()
-                agence_map[nom] = agence.agence_id
-            else:
-                agence_map[nom] = existing.agence_id
- 
-        logger.info(f"✅ {len(agence_map)} agences processed.")
+        session.flush()
+        logger.info(f"✅ Agences — {new_agences} inserted, "
+                    f"{len(agence_names) - new_agences} already existed.")
  
         # ── 5. TEMPS (Date Dimension) ─────────────────────────────────
+        # Natural PK: date_transaction (Python date object).
         logger.info("Loading Temps (date dimension)...")
-        temps_map = {}  # date_complete → temps_id
- 
-        for date in df['date_transaction'].dt.date.unique():
-            existing = session.query(Temps).filter_by(date_complete=date).first()
-            if not existing:
+        unique_dates = df['date_transaction'].dt.date.unique()
+        new_dates = 0
+        for date in unique_dates:
+            if session.get(Temps, date) is None:
                 dt = pd.Timestamp(date)
-                temps = Temps(
-                    date_complete = date,
-                    jour          = dt.day,
-                    mois          = dt.month,
-                    trimestre     = dt.quarter,
-                    annee         = dt.year,
-                    jour_semaine  = dt.strftime('%A'),
-                    est_weekend   = dt.weekday() >= 5,
-                    est_ferie     = False,
-                )
-                session.add(temps)
-                session.flush()
-                temps_map[date] = temps.temps_id
-            else:
-                temps_map[date] = existing.temps_id
+                session.add(Temps(
+                    date_transaction = date,
+                    annee            = dt.year,
+                    mois             = dt.month,
+                    trimestre        = dt.quarter,
+                    jour_semaine     = dt.strftime('%A'),
+                ))
+                new_dates += 1
  
-        logger.info(f"✅ {len(temps_map)} dates processed.")
+        session.flush()
+        logger.info(f"✅ Temps — {new_dates} inserted, "
+                    f"{len(unique_dates) - new_dates} already existed.")
  
         # ── 6. TRANSACTIONS (Bulk Insert) ─────────────────────────────
-        # FIX #5:  est_anomalie ← CSV 'is.anomaly'  (dot in column name)
-        # FIX #6:  canal not in CSV — defaults to 'Inconnu'
-        # FIX #10: montant_eur, devise, solde_avant now stored
-        # type_operation ← CSV 'categorie'  (Paiement CB, Retrait DAB…)
-        # direction      ← CSV 'type_operation' (Debit / Credit)
+        # FKs are natural values (strings / date) — no ID lookup maps needed.
+        # 'is.anomaly' has a dot in the CSV column name; use df[col] not row.get().
         logger.info("Loading Transactions (bulk insert)...")
-        zero_montant = df[df['montant'] == 0]
-        if not zero_montant.empty:
-            logger.warning(
-                f"⚠️  {len(zero_montant)} rows have montant=0 (e.g. fee waivers). "
-                f"They will be loaded as-is. Transaction IDs: "
-                f"{list(zero_montant['transaction_id'])}"
-            )
+ 
+        anomaly_col = 'is.anomaly' if 'is.anomaly' in df.columns else None
  
         transaction_objects = []
         for _, row in df.iterrows():
             transaction_objects.append(Transaction(
-                client_id      = client_map[row['client_id']],
-                produit_id     = produit_map[row['produit']],
-                agence_id      = agence_map[row['agence']],
-                temps_id       = temps_map[row['date_transaction'].date()],
-                montant        = row['montant'],
-                montant_eur    = row.get('montant_eur'),           # FIX #10
-                devise         = row.get('devise', 'EUR'),         # FIX #10
-                solde_avant    = row.get('solde_avant'),           # FIX #10
-                type_operation = row.get('categorie', 'Inconnu'),  # FIX #2 (CSV 'categorie')
-                direction      = row.get('type_operation', 'Inconnu'),  # Debit / Credit
-                statut         = row.get('statut', 'Complete'),
-                est_anomalie   = bool(row.get('is.anomaly', False)),   # FIX #5
-                canal          = 'Inconnu',                        # FIX #6: not in CSV
+                client_id           = _parse_client_id(row['client_id']),
+                produit             = row['produit'],
+                agence              = row['agence'],
+                date_transaction    = row['date_transaction'].date(),
+                montant             = row['montant'],
+                devise              = row.get('devise', 'EUR'),
+                taux_change_eur     = row.get('taux_change_eur'),
+                montant_eur         = row.get('montant_eur'),
+                type_operation      = row.get('categorie', 'Inconnu'),  # CSV 'categorie' → type_operation
+                statut              = row.get('statut', 'Complete'),
+                is_anomaly          = bool(row[anomaly_col]) if anomaly_col else False,
+                montant_eur_verifie = row.get('montant_eur_verifie'),
             ))
  
         session.bulk_save_objects(transaction_objects)
@@ -191,7 +199,7 @@ def load_csv_to_db(file_path: str):
  
     except Exception as e:
         session.rollback()
-        logger.error(f"Critical error during data load — rolled back all changes: {e}", exc_info=True)
+        logger.error(f"Rolled back — critical error during load: {e}", exc_info=True)
         raise
  
     finally:
