@@ -1,4 +1,4 @@
-# FinanceCore Data Platform
+# FinanceCore
 
 ## Overview
 
