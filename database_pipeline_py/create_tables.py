@@ -121,7 +121,7 @@ def init_db():
    
     engine = get_engine()
     Base.metadata.create_all(engine)
-    logger.info("✅ All tables created (or already exist).")
+    logger.info("All tables created (or already exist).")
 
     operational_views = [
         """
@@ -191,5 +191,5 @@ def init_db():
         conn.execution_options(isolation_level="AUTOCOMMIT")
         for sql in operational_views:
             conn.execute(text(sql))
-    logger.info("✅ Operational views created (or replaced).")
-    print("🚀 Tables and views initialized successfully.")
+    logger.info("Operational views created (or replaced).")
+    print("Tables and views initialized successfully.")

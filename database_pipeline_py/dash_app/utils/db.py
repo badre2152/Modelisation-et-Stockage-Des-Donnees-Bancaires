@@ -6,7 +6,7 @@ import pandas as pd
 from pathlib import Path
 from sqlalchemy import text
 
-# ── Logging setup ────────────────────────────────────────────────
+# Logging setup
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -21,9 +21,7 @@ from database_pipeline_py.db_connection import get_engine as _get_engine
 _VIEWS_SQL = Path(__file__).parents[2] / 'ANALYTICS-SQL' / 'views.sql'
 
 
-# ─────────────────────────────────────────────────────────────────
 # ENGINE — one pool for the entire app lifetime
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_resource
 def get_engine():
@@ -84,9 +82,7 @@ def _query(sql: str, params: dict | None = None) -> pd.DataFrame:
         return pd.read_sql(text(sql), conn, params=params or {})
 
 
-# ─────────────────────────────────────────────────────────────────
 # FILTER OPTIONS
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=3600)
 def get_filter_options() -> dict:
@@ -99,9 +95,7 @@ def get_filter_options() -> dict:
     }
 
 
-# ─────────────────────────────────────────────────────────────────
 # KPI GLOBAL
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def get_kpi_global() -> dict:
@@ -110,9 +104,7 @@ def get_kpi_global() -> dict:
     return row.to_dict()
 
 
-# ─────────────────────────────────────────────────────────────────
 # TRANSACTIONS
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def get_transactions(agences, produits, segments, year_min, year_max) -> pd.DataFrame:
@@ -177,9 +169,7 @@ def get_transactions(agences, produits, segments, year_min, year_max) -> pd.Data
     })
 
 
-# ─────────────────────────────────────────────────────────────────
 # CLIENTS RISQUE
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def get_clients_risque(segments, year_min, year_max) -> pd.DataFrame:
@@ -205,9 +195,7 @@ def get_clients_risque(segments, year_min, year_max) -> pd.DataFrame:
     })
 
 
-# ─────────────────────────────────────────────────────────────────
 # TAUX DEFAUT
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def get_taux_defaut() -> pd.DataFrame:
@@ -215,9 +203,7 @@ def get_taux_defaut() -> pd.DataFrame:
     return _query("SELECT * FROM vue_taux_defaut")
 
 
-# ─────────────────────────────────────────────────────────────────
 # KPI MENSUEL
-# ─────────────────────────────────────────────────────────────────
 
 @st.cache_data(ttl=300)
 def get_kpi_mensuel() -> pd.DataFrame:
@@ -225,9 +211,7 @@ def get_kpi_mensuel() -> pd.DataFrame:
     return _query("SELECT * FROM vue_kpi_mensuel")
 
 
-# ─────────────────────────────────────────────────────────────────
 # COMPUTE KPIS
-# ─────────────────────────────────────────────────────────────────
 
 def compute_kpis(df: pd.DataFrame) -> dict:
     logger.info("Computing KPIs from DataFrame...")

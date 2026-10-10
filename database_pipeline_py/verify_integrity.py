@@ -20,17 +20,17 @@ def run_health_check() -> bool:
     try:
         with engine.connect() as conn:
 
-            # ── CHECK 1: Connection ───────────────────────────────────
+            # CHECK 1: Connection
             res = conn.execute(text("SELECT current_user, current_database();"))
             user, db = res.fetchone()
-            logger.info(f"✅ DB Connection OK — user: '{user}', db: '{db}'")
+            logger.info(f" DB Connection OK — user: '{user}', db: '{db}'")
 
-            # ── CHECK 2: Write / Delete permissions ───────────────────
+            # CHECK 2: Write / Delete permissions
             conn.execute(text("CREATE TEMP TABLE _health_check_test (id INT)"))
             conn.execute(text("DROP TABLE _health_check_test"))
-            logger.info("✅ Read / Write / Delete permissions OK.")
+            logger.info(" Read / Write / Delete permissions OK.")
 
-            # ── CHECK 3: Required tables ─────────────────────────────
+            # CHECK 3: Required tables
             required = ['clients', 'produits', 'agences', 'temps', 'transactions']
             missing  = []
             for table in required:
@@ -48,9 +48,9 @@ def run_health_check() -> bool:
                     missing.append(table)
 
             if missing:
-                logger.warning(f"⚠️  Missing tables (will be created by init_db): {missing}")
+                logger.warning(f"  Missing tables (will be created by init_db): {missing}")
             else:
-                logger.info("✅ All required tables exist.")
+                logger.info(" All required tables exist.")
 
             return True
 

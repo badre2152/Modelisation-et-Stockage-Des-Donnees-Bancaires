@@ -19,6 +19,6 @@ with engine.connect() as conn:
         try:
             result = conn.execute(text(f"SELECT COUNT(*) FROM {table}"))
             count = result.scalar()
-            print(f"\n✅ {table}: {count} صفوف")
+            print(f"\n {table}: {count} صفوف")
         except Exception as e:
             print(f"\n❌ {table}: خطأ — {e}")

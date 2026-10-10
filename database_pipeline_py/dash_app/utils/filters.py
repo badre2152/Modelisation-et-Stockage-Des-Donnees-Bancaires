@@ -49,7 +49,7 @@ def render_sidebar() -> dict:
     st.sidebar.title("🔍 Filtres")
     st.sidebar.markdown("---")
 
-    # ── Agence ───────────────────────────────────────────────────
+    # Agence
     agences = st.sidebar.multiselect(
         label   = "Agence",
         options = opts["agences"],
@@ -57,7 +57,7 @@ def render_sidebar() -> dict:
         key     = "f_agences",      # persists across page switches
     )
 
-    # ── Segment client ────────────────────────────────────────────
+    # Segment client
     # Values from DB: 'Standard', 'Premium', 'Risque'
     segments = st.sidebar.multiselect(
         label   = "Segment client",
@@ -66,7 +66,7 @@ def render_sidebar() -> dict:
         key     = "f_segments",
     )
 
-    # ── Produit ───────────────────────────────────────────────────
+    # Produit
     produits = st.sidebar.multiselect(
         label   = "Produit",
         options = opts["produits"],
@@ -74,7 +74,7 @@ def render_sidebar() -> dict:
         key     = "f_produits",
     )
 
-    # ── Période (slider d'années) ─────────────────────────────────
+    # Période (slider d'années)
     # select_slider is used (not slider) because year values come from
     # the DB and are not guaranteed to be contiguous integers.
     # Returns a tuple (min_selected, max_selected).
@@ -88,7 +88,7 @@ def render_sidebar() -> dict:
     st.sidebar.markdown("---")
     st.sidebar.caption("FinanceCore SA · Dashboard v1.0")
 
-    # ── Empty-selection guard ─────────────────────────────────────
+    # Empty-selection guard
     return {
         "agences":  agences  or opts["agences"],
         "produits": produits or opts["produits"],

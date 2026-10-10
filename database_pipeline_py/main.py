@@ -33,26 +33,26 @@ def run_pipeline():
     logger.info("=" * 55)
 
     try:
-        # ── Step 1: Create database ───────────────────────────────────
+        # Step 1: Create database
         logger.info("[Step 1/5] Checking / Creating database...")
         create_database_if_not_exists()
 
-        # ── Step 2: Health check ──────────────────────────────────────
+        # Step 2: Health check
         logger.info("[Step 2/5] Running health check...")
         if not run_health_check():
             logger.warning("Pipeline aborted: health check failed.")
             return
 
-        # ── Step 3: Tables + operational views ───────────────────────
+        # Step 3: Tables + operational views
         logger.info("[Step 3/5] Initializing tables and operational views...")
         init_db()
 
-        # ── Step 4: Load CSV data ─────────────────────────────────────
+        # Step 4: Load CSV data
         csv_path = os.getenv("CSV_PATH", "data/financecore_clean.csv")
         logger.info(f"[Step 4/5] Loading CSV data from '{csv_path}'...")
         load_csv_to_db(csv_path)
 
-        # ── Step 5: Dashboard views + analytics ───────────────────────
+        # Step 5: Dashboard views + analytics
         # Creates all 7 views used by the Streamlit dashboard:
         #   vue_kpi_global, vue_kpi_agence, vue_kpi_segment,
         #   vue_kpi_produit, vue_kpi_mensuel,
@@ -63,7 +63,7 @@ def run_pipeline():
         print_analytics(results)
 
         logger.info("=" * 55)
-        logger.info("  PIPELINE FINISHED SUCCESSFULLY ✅")
+        logger.info("  PIPELINE FINISHED SUCCESSFULLY ")
         logger.info("=" * 55)
 
     except FileNotFoundError as e:
