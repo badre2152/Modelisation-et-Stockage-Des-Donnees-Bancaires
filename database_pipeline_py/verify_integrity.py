@@ -48,7 +48,7 @@ def run_health_check() -> bool:
                     missing.append(table)
 
             if missing:
-                logger.warning(f"️  Missing tables (will be created by init_db): {missing}")
+                logger.warning(f"  Missing tables (will be created by init_db): {missing}")
             else:
                 logger.info(" All required tables exist.")
 
