@@ -13,16 +13,16 @@ from database_pipeline_py.dash_app.utils.db import get_transactions, get_clients
 try:
     st.set_page_config(
         page_title="Analyse des Risques — FinanceCore",
-        page_icon="⚠️",
+        page_icon="️",
         layout="wide",
     )
 except Exception:
     pass
 
-# ── Sidebar ────────────────────────────────────────────────────────
+# Sidebar
 filters = render_sidebar()
 
-# ── Data ───────────────────────────────────────────────────────────
+# Data
 with st.spinner("Chargement des données de risque..."):
     df = get_transactions(
         agences  = tuple(filters["agences"]),
@@ -42,7 +42,6 @@ if df.empty:
     st.warning("Aucune donnée pour les filtres sélectionnés.")
     st.stop()
 
-# ─────────────────────────────────────────────────────────────────
 # SAFETY GUARD — deduplicate columns
 #
 # FIX: if get_transactions ever returns duplicate column names
@@ -52,11 +51,10 @@ if df.empty:
 # Dropping duplicate columns here ensures this page is robust
 # regardless of upstream query changes. The root cause is already
 # fixed in db.py (explicit column list), but this guard stays cheap.
-# ─────────────────────────────────────────────────────────────────
 df = df.loc[:, ~df.columns.duplicated()]
 
-# ── Header ─────────────────────────────────────────────────────────
-st.title("⚠️ Analyse des Risques")
+# Header
+st.title("️ Analyse des Risques")
 st.caption(
     f"{len(df):,} transactions · "
     f"{int(df['is_anomaly'].sum())} anomalies · "
@@ -64,9 +62,7 @@ st.caption(
 )
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 1. HEATMAP — Default rate by segment × product risk
-# ─────────────────────────────────────────────────────────────────
 st.subheader("🔥 Taux de défaut — Segment × Risque produit")
 st.caption("Défaut = is_anomaly = TRUE ou statut = 'Rejete' · Source : vue_taux_defaut")
 
@@ -105,14 +101,12 @@ st.info(
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 2. SCATTER PLOT — Score crédit vs Montant moyen
 #
 # FIX: removed the debug print/diagnostic block that was left in
 # production code. The underlying groupby crash is fixed in db.py
 # by using an explicit SELECT column list instead of SELECT *,
 # which prevented duplicate columns being returned from the JOIN.
-# ─────────────────────────────────────────────────────────────────
 st.subheader("🔵 Score crédit vs Montant moyen — par niveau de risque produit")
 
 client_scatter = (
@@ -167,9 +161,7 @@ st.plotly_chart(fig_scatter, use_container_width=True)
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 3. TOP 10 CLIENTS À RISQUE
-# ─────────────────────────────────────────────────────────────────
 st.subheader("🚨 Top 10 clients les plus à risque")
 
 if df_risque.empty:
@@ -231,9 +223,7 @@ else:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 4. CSV EXPORT
-# ─────────────────────────────────────────────────────────────────
 st.subheader("💾 Export de l'analyse risque")
 
 if not df_risque.empty:
