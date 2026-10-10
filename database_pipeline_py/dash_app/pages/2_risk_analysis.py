@@ -13,7 +13,7 @@ from database_pipeline_py.dash_app.utils.db import get_transactions, get_clients
 try:
     st.set_page_config(
         page_title="Analyse des Risques — FinanceCore",
-        page_icon="️",
+        page_icon="",
         layout="wide",
     )
 except Exception:
@@ -54,7 +54,7 @@ if df.empty:
 df = df.loc[:, ~df.columns.duplicated()]
 
 # Header
-st.title("️ Analyse des Risques")
+st.title(" Analyse des Risques")
 st.caption(
     f"{len(df):,} transactions · "
     f"{int(df['is_anomaly'].sum())} anomalies · "
@@ -229,7 +229,7 @@ st.subheader("💾 Export de l'analyse risque")
 if not df_risque.empty:
     risk_csv = df_risque.to_csv(index=False).encode("utf-8")
     st.download_button(
-        label     = f"⬇️  Télécharger l'analyse risque — {len(df_risque)} clients (CSV)",
+        label     = f"⬇  Télécharger l'analyse risque — {len(df_risque)} clients (CSV)",
         data      = risk_csv,
         file_name = f"financecore_risque_{filters['year_min']}_{filters['year_max']}.csv",
         mime      = "text/csv",
