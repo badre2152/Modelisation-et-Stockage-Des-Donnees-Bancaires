@@ -217,7 +217,7 @@ st.markdown("---")
 st.subheader("💾 Export des données filtrées")
 csv = df.to_csv(index=False).encode("utf-8")
 st.download_button(
-    label     = f"⬇️  Télécharger {len(df):,} transactions filtrées (CSV)",
+    label     = f"⬇  Télécharger {len(df):,} transactions filtrées (CSV)",
     data      = csv,
     file_name = f"financecore_transactions_{filters['year_min']}_{filters['year_max']}.csv",
     mime      = "text/csv",
