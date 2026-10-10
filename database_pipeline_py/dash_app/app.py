@@ -78,7 +78,7 @@ with col_nav:
 | Page | Contenu |
 |---|---|
 |  Vue Exécutive | KPIs · évolution mensuelle · CA agence/produit · segments |
-| ️ Analyse des Risques | Corrélations · scatter score/montant · top 10 clients à risque |
+|  Analyse des Risques | Corrélations · scatter score/montant · top 10 clients à risque |
 """)
 
 st.markdown("---")
@@ -106,7 +106,7 @@ try:
 
 except Exception as e:
     st.warning(
-        f"️ Impossible de charger les KPIs globaux : {e}\n\n"
+        f" Impossible de charger les KPIs globaux : {e}\n\n"
         "Assurez-vous que le pipeline a été exécuté "
         "(DATABASE-PIPELINE-PY/main.py) pour créer les vues analytiques."
     )
