@@ -63,7 +63,7 @@ def run_pipeline():
         print_analytics(results)
 
         logger.info("=" * 55)
-        logger.info("  PIPELINE FINISHED SUCCESSFULLY ✅")
+        logger.info("  PIPELINE FINISHED SUCCESSFULLY ")
         logger.info("=" * 55)
 
     except FileNotFoundError as e:
