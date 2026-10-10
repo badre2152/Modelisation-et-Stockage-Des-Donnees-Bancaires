@@ -9,9 +9,7 @@ from database_pipeline_py.create_tables import Client, Produit, Agence, Temps, T
 logger = logging.getLogger(__name__)
 
 
-# ─────────────────────────────────────────────────────────────────
 # CSV COLUMN → DB DESTINATION
-# ─────────────────────────────────────────────────────────────────
 #  client_id  (CLI0023)    → clients.client_id        (parsed int)
 #  segment_client          → clients.segment_client
 #  score_credit_client     → clients.score_credit_client
@@ -33,7 +31,6 @@ logger = logging.getLogger(__name__)
 #  NOT LOADED (absent from DBML schema):
 #    solde_avant, nb_transactions, montant_moyen, nb_produits,
 #    type_operation (Debit/Credit), transaction_id (CSV string TXN…)
-# ─────────────────────────────────────────────────────────────────
 
 
 def _parse_client_id(raw: str) -> int:
@@ -59,13 +56,13 @@ def load_csv_to_db(file_path: str):
     session = Session()
 
     try:
-        # ── 1. READ ───────────────────────────────────────────────────
+        # READ
         logger.info(f"Reading '{file_path}'...")
         df = pd.read_csv(file_path)
         df['date_transaction'] = pd.to_datetime(df['date_transaction'])
         logger.info(f"Loaded {len(df):,} rows, {len(df.columns)} columns.")
 
-        # ── 2. CLIENTS ────────────────────────────────────────────────
+        # CLIENTS
         logger.info("Loading Clients...")
         client_stats = (
             df.groupby('client_id')
@@ -86,10 +83,10 @@ def load_csv_to_db(file_path: str):
                 ))
                 new_clients += 1
         session.flush()
-        logger.info(f"✅ Clients      — {new_clients} inserted, "
+        logger.info(f"Clients      — {new_clients} inserted, "
                     f"{len(client_stats) - new_clients} already existed.")
 
-        # ── 3. PRODUITS ───────────────────────────────────────────────
+        # PRODUITS
         logger.info("Loading Produits...")
         has_categorie  = 'categorie'        in df.columns
         has_cat_risque = 'categorie_risque' in df.columns
@@ -111,10 +108,10 @@ def load_csv_to_db(file_path: str):
                 ))
                 new_produits += 1
         session.flush()
-        logger.info(f"✅ Produits     — {new_produits} inserted, "
+        logger.info(f"Produits     — {new_produits} inserted, "
                     f"{len(produit_meta) - new_produits} already existed.")
 
-        # ── 4. AGENCES ────────────────────────────────────────────────
+        # AGENCES
         logger.info("Loading Agences...")
         agence_names = df['agence'].unique()
         new_agences  = 0
@@ -123,10 +120,10 @@ def load_csv_to_db(file_path: str):
                 session.add(Agence(agence=nom))
                 new_agences += 1
         session.flush()
-        logger.info(f"✅ Agences      — {new_agences} inserted, "
+        logger.info(f"Agences      — {new_agences} inserted, "
                     f"{len(agence_names) - new_agences} already existed.")
 
-        # ── 5. TEMPS ─────────────────────────────────────────────────
+        # TEMPS
         logger.info("Loading Temps...")
         unique_dates = df['date_transaction'].dt.date.unique()
         new_dates    = 0
@@ -142,10 +139,10 @@ def load_csv_to_db(file_path: str):
                 ))
                 new_dates += 1
         session.flush()
-        logger.info(f"✅ Temps        — {new_dates} inserted, "
+        logger.info(f"Temps        — {new_dates} inserted, "
                     f"{len(unique_dates) - new_dates} already existed.")
 
-        # ── 6. TRANSACTIONS ───────────────────────────────────────────
+        # TRANSACTIONS
         # 'is.anomaly' has a dot in the CSV name — must use df[col] not row.get()
         logger.info("Loading Transactions (bulk insert)...")
         anomaly_col = 'is.anomaly' if 'is.anomaly' in df.columns else None
@@ -167,9 +164,9 @@ def load_csv_to_db(file_path: str):
                 is_anomaly          = bool(row[anomaly_col]) if anomaly_col else False,
             ))
         session.bulk_save_objects(transaction_objects)
-        logger.info(f"✅ Transactions — {len(transaction_objects):,} inserted.")
+        logger.info(f"Transactions — {len(transaction_objects):,} inserted.")
 
-        # ── 7. COMMIT ─────────────────────────────────────────────────
+        # COMMIT
         session.commit()
         logger.info("🎉 Data loading completed successfully.")
 
