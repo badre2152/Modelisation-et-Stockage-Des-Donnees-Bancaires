@@ -1,9 +1,9 @@
 import os
 import re
 import logging
-import urllib.parse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
+from sqlalchemy.engine import URL
 
 logger = logging.getLogger(__name__)
 load_dotenv(dotenv_path=".env")
@@ -13,18 +13,25 @@ def get_engine(db_name=None):
     
     try:
         user     = os.getenv("DB_USER")
-        password = urllib.parse.quote_plus(os.getenv("DB_PASSWORD", ""))
+        password = os.getenv("DB_PASSWORD")
         host     = os.getenv("DB_HOST", "localhost")
         port     = os.getenv("DB_PORT", "5432")
         name     = db_name or os.getenv("DB_NAME")
 
-        if not all([user, host, port, name]):
+        if not all([user, password, host, port, name]):
             raise ValueError(
                 "Missing required DB env vars. "
                 "Check DB_USER, DB_HOST, DB_PORT, DB_NAME in your .env file."
             )
 
-        url = f"postgresql+psycopg2://{user}:{password}@{host}:{port}/{name}"
+        url = URL.create(
+            "postgresql+psycopg2",
+            username=user,
+            password=password,
+            host=host,
+            port=int(port),
+            database=name,
+        )
         return create_engine(url, pool_pre_ping=True)
 
     except Exception as e:
