@@ -12,16 +12,16 @@ from database_pipeline_py.dash_app.utils.db import get_transactions, get_kpi_men
 try:
     st.set_page_config(
         page_title="Vue Exécutive — FinanceCore",
-        page_icon="📊",
+        page_icon="",
         layout="wide",
     )
 except Exception:
     pass
 
-# ── Sidebar ────────────────────────────────────────────────────────
+# Sidebar
 filters = render_sidebar()
 
-# ── Data ───────────────────────────────────────────────────────────
+# Data
 with st.spinner("Chargement..."):
     df = get_transactions(
         agences  = tuple(filters["agences"]),
@@ -36,8 +36,8 @@ if df.empty:
     st.warning("Aucune donnée pour les filtres sélectionnés. Élargissez votre sélection.")
     st.stop()
 
-# ── Header ─────────────────────────────────────────────────────────
-st.title("📊 Vue Exécutive")
+# Header
+st.title(" Vue Exécutive")
 st.caption(
     f"{len(df):,} transactions · "
     f"{filters['year_min']}–{filters['year_max']} · "
@@ -46,12 +46,10 @@ st.caption(
 )
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 1. KPI CARDS
 # FIX: compute_kpis returns nb_clients as a plain int (nunique()),
 #      so removed the erroneous .iloc[0] call that caused an
 #      AttributeError when the value is already a scalar.
-# ─────────────────────────────────────────────────────────────────
 kpis = compute_kpis(df)
 
 c1, c2, c3, c4 = st.columns(4)
@@ -67,9 +65,7 @@ c4.metric(
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 2. LINE CHART — Monthly credits vs debits evolution
-# ─────────────────────────────────────────────────────────────────
 st.subheader("📉 Évolution mensuelle — Crédits vs Débits")
 
 mensuel_filtered = df_mensuel[
@@ -112,14 +108,12 @@ st.plotly_chart(fig_line, use_container_width=True)
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 3. BAR CHARTS — CA by agence and by produit (side by side)
 #
 # FIX: replaced the "$4" placeholder with the proper `with col_ag:`
 #      block. "$4" was a template variable that was never substituted,
 #      causing a SyntaxError at parse time.
-# ─────────────────────────────────────────────────────────────────
-st.subheader("📊 Chiffre d'affaires")
+st.subheader(" Chiffre d'affaires")
 
 col_ag, col_pr = st.columns(2)
 
@@ -165,9 +159,7 @@ with col_pr:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 4. PIE CHART — Client segment distribution
-# ─────────────────────────────────────────────────────────────────
 st.subheader("🥧 Répartition des clients par segment")
 
 col_pie, col_tbl = st.columns([1, 1])
@@ -221,9 +213,7 @@ with col_tbl:
 
 st.markdown("---")
 
-# ─────────────────────────────────────────────────────────────────
 # 5. CSV EXPORT
-# ─────────────────────────────────────────────────────────────────
 st.subheader("💾 Export des données filtrées")
 csv = df.to_csv(index=False).encode("utf-8")
 st.download_button(
