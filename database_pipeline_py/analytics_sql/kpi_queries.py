@@ -31,9 +31,7 @@ logger = logging.getLogger(__name__)
 _HERE = Path(__file__).parent
 
 
-# ─────────────────────────────────────────────────────────────────
 # HELPERS
-# ─────────────────────────────────────────────────────────────────
 
 def _read_sql_file(filename: str) -> str:
     return (_HERE / filename).read_text(encoding='utf-8')
@@ -45,9 +43,7 @@ def _run(conn, sql, params: dict | None, label: str) -> pd.DataFrame:
     return df
 
 
-# ─────────────────────────────────────────────────────────────────
 # NAMED QUERIES  (extracted from queries.sql by section)
-# ─────────────────────────────────────────────────────────────────
 
 SQL_AGG_AGENCE = """
     SELECT
@@ -248,9 +244,7 @@ SQL_VUE_COMPLETE = """
 """
 
 
-# ─────────────────────────────────────────────────────────────────
 # PUBLIC FUNCTIONS
-# ─────────────────────────────────────────────────────────────────
 
 def create_dashboard_views():
     views_sql = _read_sql_file('views.sql')
@@ -259,7 +253,7 @@ def create_dashboard_views():
     with engine.begin() as conn:
         conn.execute(text(views_sql))
 
-    logger.info("✅ dashboard views created / replaced successfully.")
+    logger.info(" dashboard views created / replaced successfully.")
 
 
 def get_aggregations(min_tx_agence: int = 10,
@@ -321,7 +315,7 @@ def run_all_analytics() -> dict[str, pd.DataFrame]:
     results['clients_sous_moyenne'] = get_clients_sous_moyenne()
     results['taux_defaut']          = get_taux_defaut()
     results['vue_complete']         = get_vue_complete(limit=100)
-    logger.info("✅ All analytics complete.")
+    logger.info(" All analytics complete.")
     return results
 
 
@@ -344,9 +338,7 @@ def print_analytics(results: dict[str, pd.DataFrame]):
         print(df.head(5).to_string(index=False))
 
 
-# ─────────────────────────────────────────────────────────────────
 # STANDALONE
-# ─────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
     logging.basicConfig(
